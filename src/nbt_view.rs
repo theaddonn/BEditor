@@ -3,12 +3,12 @@ use iced::widget::{Column, Row, Scrollable, Text, text_input, TextInput};
 use iced::widget::{button, column, text, scrollable};
 use iced::{Alignment, Element, Padding, Sandbox, Settings};
 use std::fs;
+use bedrock_rs::core::read::ByteStreamRead;
 use bedrock_rs::nbt::{NbtError, NbtTag};
 use bedrock_rs::nbt::big_endian::NbtBigEndian;
 use bedrock_rs::nbt::little_endian::NbtLittleEndian;
 use bedrock_rs::nbt::little_endian_network::NbtLittleEndianNetwork;
 use crate::messages::BEditorMessage;
-use crate::nbt_view;
 use crate::view::BEditorView;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -73,34 +73,55 @@ impl std::fmt::Display for NbtHeader {
 
 pub struct NbtView {
     path: String,
-    nbt: Result<(String, NbtTag), String>,
+    nbt: Result<(String, NbtTag, Option<(i32, i32)>), String>,
     endian: NbtEndian,
     header: NbtHeader,
 }
 
 impl NbtView {
-    fn parse_nbt(&self) -> Result<(String, NbtTag), String>{
+    fn parse_nbt(&self) -> Result<(String, NbtTag, Option<(i32, i32)>), String>{
         let data = match fs::read(self.path.clone()) {
             Ok(v) => { v }
             Err(e) => { return Err(format!("Error reading File: {e:?}")) }
         };
 
+        let mut stream = ByteStreamRead::from(data);
+
+        let mut header = None;
+
+        match self.header {
+            NbtHeader::None => {}
+            NbtHeader::Normal | NbtHeader::LevelDat => {
+                let first = match stream.read_i32le() {
+                    Ok(v) => { v.0 }
+                    Err(e) => { return Err(format!("Error reading Nbt header: {e:?}")) }
+                };
+
+                let second = match stream.read_i32le() {
+                    Ok(v) => { v.0 }
+                    Err(e) => { return Err(format!("Error reading Nbt header: {e:?}")) }
+                };
+
+                header = Some((first, second))
+            }
+        }
+
         match self.endian {
             NbtEndian::Little => {
-                match NbtTag::nbt_deserialize_vec::<NbtLittleEndian>(&data) {
-                    Ok(v) => { Ok(v) }
+                match NbtTag::nbt_deserialize::<NbtLittleEndian>(&mut stream) {
+                    Ok(v) => { Ok((v.0, v.1, header)) }
                     Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
                 }
             }
             NbtEndian::LittleNetwork => {
-                match NbtTag::nbt_deserialize_vec::<NbtLittleEndianNetwork>(&data) {
-                    Ok(v) => { Ok(v) }
+                match NbtTag::nbt_deserialize::<NbtLittleEndianNetwork>(&mut stream) {
+                    Ok(v) => { Ok((v.0, v.1, header)) }
                     Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
                 }
             }
             NbtEndian::Big => {
-                match NbtTag::nbt_deserialize_vec::<NbtBigEndian>(&data) {
-                    Ok(v) => { Ok(v) }
+                match NbtTag::nbt_deserialize::<NbtBigEndian>(&mut stream) {
+                    Ok(v) => { Ok((v.0, v.1, header)) }
                     Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
                 }
             }
@@ -160,7 +181,7 @@ impl BEditorView for NbtView {
             path: String::new(),
             nbt: Err(String::from("")),
             endian: Default::default(),
-            header: NbtHeader::None
+            header: NbtHeader::None,
         }
     }
 
@@ -176,6 +197,13 @@ impl BEditorView for NbtView {
     }
 
     fn view(&self) -> Element<BEditorMessage> {
+        let padding = Padding {
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+            left: 20.0,
+        };
+
         Column::new()
             .push(
                 Row::new()
@@ -201,9 +229,42 @@ impl BEditorView for NbtView {
                 Scrollable::new(
                     match &self.nbt {
                         Ok(v) => {
-                            self.nbt2elements(v.clone().0, v.clone().1, 0)
+                            let col = Column::new();
+
+                            let col = match v.clone().2 {
+                                None => { col }
+                                Some(v) => {
+                                    match self.header {
+                                        NbtHeader::None => { col }
+                                        NbtHeader::Normal => {
+                                            let col = col.push(Text::new(String::from("Header: {")));
+
+                                            let col2 = Column::new();
+                                            let col2 = col2.push(Text::new(format!("First: {}", v.0)));
+                                            let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+
+                                            let col = col.push(col2.padding(padding));
+
+                                            col.push(Text::new(String::from("}")))
+                                        }
+                                        NbtHeader::LevelDat => {
+                                            let col = col.push(Text::new(String::from("Header: {")));
+
+                                            let col2 = Column::new();
+                                            let col2 = col2.push(Text::new(format!("Format Version: {}", v.0)));
+                                            let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+
+                                            let col = col.push(col2.padding(padding));
+
+                                            col.push(Text::new(String::from("}")))
+                                        }
+                                    }
+                                }
+                            };
+
+                            col.push(self.nbt2elements(v.clone().0, v.clone().1, 0))
                         }
-                        Err(e) => { Text::new(format!("{e}")).into() }
+                        Err(e) => { Column::new().push(Text::new(format!("{e}"))) }
                     }
                 )
             )
