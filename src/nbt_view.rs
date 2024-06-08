@@ -273,43 +273,47 @@ impl BEditorView for NbtView {
                             .on_press(BEditorMessage::NbtViewRefresh),
                     ),
             )
-            .push(Scrollable::new(match &self.nbt {
-                Ok(v) => {
-                    let col = Column::new();
+            .push(
+                Scrollable::new(match &self.nbt {
+                    Ok(v) => {
+                        let col = Column::new();
 
-                    let col = match v.clone().2 {
-                        None => col,
-                        Some(v) => match self.header {
-                            NbtHeader::None => col,
-                            NbtHeader::Normal => {
-                                let col = col.push(Text::new(String::from("Header: {")));
+                        let col = match v.clone().2 {
+                            None => col,
+                            Some(v) => match self.header {
+                                NbtHeader::None => col,
+                                NbtHeader::Normal => {
+                                    let col = col.push(Text::new(String::from("Header: {")));
 
-                                let col2 = Column::new();
-                                let col2 = col2.push(Text::new(format!("First: {}", v.0)));
-                                let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+                                    let col2 = Column::new();
+                                    let col2 = col2.push(Text::new(format!("First: {}", v.0)));
+                                    let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
 
-                                let col = col.push(col2.padding(padding));
+                                    let col = col.push(col2.padding(padding));
 
-                                col.push(Text::new(String::from("}")))
-                            }
-                            NbtHeader::LevelDat => {
-                                let col = col.push(Text::new(String::from("Header: {")));
+                                    col.push(Text::new(String::from("}")))
+                                }
+                                NbtHeader::LevelDat => {
+                                    let col = col.push(Text::new(String::from("Header: {")));
 
-                                let col2 = Column::new();
-                                let col2 = col2.push(Text::new(format!("Format Version: {}", v.0)));
-                                let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+                                    let col2 = Column::new();
+                                    let col2 =
+                                        col2.push(Text::new(format!("Format Version: {}", v.0)));
+                                    let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
 
-                                let col = col.push(col2.padding(padding));
+                                    let col = col.push(col2.padding(padding));
 
-                                col.push(Text::new(String::from("}")))
-                            }
-                        },
-                    };
+                                    col.push(Text::new(String::from("}")))
+                                }
+                            },
+                        };
 
-                    col.push(self.nbt2elements(v.clone().0, v.clone().1, 1))
-                }
-                Err(e) => Column::new().push(Text::new(format!("{e}"))),
-            }).width(Length::Fill))
+                        col.push(self.nbt2elements(v.clone().0, v.clone().1, 1))
+                    }
+                    Err(e) => Column::new().push(Text::new(format!("{e}"))),
+                })
+                .width(Length::Fill),
+            )
             .width(Length::Fill)
             .into()
     }
