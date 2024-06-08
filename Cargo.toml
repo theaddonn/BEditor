@@ -8,10 +8,3 @@ edition = "2021"
 iced = { version = "0.12", features = ["debug", "image", "advanced"] }
 
 bedrock-rs = { path = "../bedrock-rs" }
-
-[profile.release]
-opt-level = 'z'     # Optimize for size
-lto = true          # Enable link-time optimization
-codegen-units = 1   # Reduce number of codegen units to increase optimizations
-panic = 'abort'     # Abort on panic
-strip = true        # Strip symbols from binary*
