@@ -6,10 +6,12 @@ use bedrock_rs::nbt::little_endian::NbtLittleEndian;
 use bedrock_rs::nbt::little_endian_network::NbtLittleEndianNetwork;
 use bedrock_rs::nbt::NbtTag;
 use iced::widget::{Column, Row, Scrollable, Text, TextInput};
-use iced::{Element, Padding, Sandbox};
+use iced::{Element, Length, Padding, Sandbox};
 
 use crate::messages::BEditorMessage;
 use crate::view::BEditorView;
+
+pub const INDENTATION: f32 = 3.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NbtEndian {
@@ -127,7 +129,7 @@ impl NbtView {
             top: 0.0,
             right: 0.0,
             bottom: 0.0,
-            left: indent as f32 * 20.0,
+            left: indent as f32 * INDENTATION,
         };
 
         match tag {
@@ -246,7 +248,7 @@ impl BEditorView for NbtView {
             top: 0.0,
             right: 0.0,
             bottom: 0.0,
-            left: 20.0,
+            left: INDENTATION,
         };
 
         Column::new()
@@ -304,10 +306,11 @@ impl BEditorView for NbtView {
                         },
                     };
 
-                    col.push(self.nbt2elements(v.clone().0, v.clone().1, 0))
+                    col.push(self.nbt2elements(v.clone().0, v.clone().1, 1))
                 }
                 Err(e) => Column::new().push(Text::new(format!("{e}"))),
-            }))
+            }).width(Length::Fill))
+            .width(Length::Fill)
             .into()
     }
 }
