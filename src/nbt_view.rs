@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use iced::widget::{Column, Row, Scrollable, Text, text_input, TextInput};
-use iced::widget::{button, column, text, scrollable};
-use iced::{Alignment, Element, Padding, Sandbox, Settings};
 use std::fs;
+
 use bedrock_rs::core::read::ByteStreamRead;
-use bedrock_rs::nbt::{NbtError, NbtTag};
 use bedrock_rs::nbt::big_endian::NbtBigEndian;
 use bedrock_rs::nbt::little_endian::NbtLittleEndian;
 use bedrock_rs::nbt::little_endian_network::NbtLittleEndianNetwork;
+use bedrock_rs::nbt::NbtTag;
+use iced::widget::{Column, Row, Scrollable, Text, TextInput};
+use iced::{Element, Padding, Sandbox};
+
 use crate::messages::BEditorMessage;
 use crate::view::BEditorView;
 
@@ -20,11 +20,7 @@ pub enum NbtEndian {
 }
 
 impl NbtEndian {
-    const ALL: [NbtEndian; 3] = [
-        NbtEndian::Little,
-        NbtEndian::LittleNetwork,
-        NbtEndian::Big
-    ];
+    const ALL: [NbtEndian; 3] = [NbtEndian::Little, NbtEndian::LittleNetwork, NbtEndian::Big];
 }
 
 impl std::fmt::Display for NbtEndian {
@@ -46,15 +42,11 @@ pub enum NbtHeader {
     #[default]
     None,
     Normal,
-    LevelDat
+    LevelDat,
 }
 
 impl NbtHeader {
-    const ALL: [NbtHeader; 3] = [
-        NbtHeader::None,
-        NbtHeader::Normal,
-        NbtHeader::LevelDat,
-    ];
+    const ALL: [NbtHeader; 3] = [NbtHeader::None, NbtHeader::Normal, NbtHeader::LevelDat];
 }
 
 impl std::fmt::Display for NbtHeader {
@@ -65,7 +57,7 @@ impl std::fmt::Display for NbtHeader {
             match self {
                 NbtHeader::None => "No Header",
                 NbtHeader::Normal => "Normal Header",
-                NbtHeader::LevelDat => "Level.dat Header"
+                NbtHeader::LevelDat => "Level.dat Header",
             }
         )
     }
@@ -79,10 +71,12 @@ pub struct NbtView {
 }
 
 impl NbtView {
-    fn parse_nbt(&self) -> Result<(String, NbtTag, Option<(i32, i32)>), String>{
+    fn parse_nbt(&self) -> Result<(String, NbtTag, Option<(i32, i32)>), String> {
         let data = match fs::read(self.path.clone()) {
-            Ok(v) => { v }
-            Err(e) => { return Err(format!("Error reading File: {e:?}")) }
+            Ok(v) => v,
+            Err(e) => {
+                return Err(format!("Error reading File: {e:?}"));
+            }
         };
 
         let mut stream = ByteStreamRead::from(data);
@@ -93,13 +87,17 @@ impl NbtView {
             NbtHeader::None => {}
             NbtHeader::Normal | NbtHeader::LevelDat => {
                 let first = match stream.read_i32le() {
-                    Ok(v) => { v.0 }
-                    Err(e) => { return Err(format!("Error reading Nbt header: {e:?}")) }
+                    Ok(v) => v.0,
+                    Err(e) => {
+                        return Err(format!("Error reading Nbt header: {e:?}"));
+                    }
                 };
 
                 let second = match stream.read_i32le() {
-                    Ok(v) => { v.0 }
-                    Err(e) => { return Err(format!("Error reading Nbt header: {e:?}")) }
+                    Ok(v) => v.0,
+                    Err(e) => {
+                        return Err(format!("Error reading Nbt header: {e:?}"));
+                    }
                 };
 
                 header = Some((first, second))
@@ -107,24 +105,20 @@ impl NbtView {
         }
 
         match self.endian {
-            NbtEndian::Little => {
-                match NbtTag::nbt_deserialize::<NbtLittleEndian>(&mut stream) {
-                    Ok(v) => { Ok((v.0, v.1, header)) }
-                    Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
-                }
-            }
+            NbtEndian::Little => match NbtTag::nbt_deserialize::<NbtLittleEndian>(&mut stream) {
+                Ok(v) => Ok((v.0, v.1, header)),
+                Err(e) => Err(format!("Error parsing Nbt: {e:?}")),
+            },
             NbtEndian::LittleNetwork => {
                 match NbtTag::nbt_deserialize::<NbtLittleEndianNetwork>(&mut stream) {
-                    Ok(v) => { Ok((v.0, v.1, header)) }
-                    Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
+                    Ok(v) => Ok((v.0, v.1, header)),
+                    Err(e) => Err(format!("Error parsing Nbt: {e:?}")),
                 }
             }
-            NbtEndian::Big => {
-                match NbtTag::nbt_deserialize::<NbtBigEndian>(&mut stream) {
-                    Ok(v) => { Ok((v.0, v.1, header)) }
-                    Err(e) => { Err(format!("Error parsing Nbt: {e:?}")) }
-                }
-            }
+            NbtEndian::Big => match NbtTag::nbt_deserialize::<NbtBigEndian>(&mut stream) {
+                Ok(v) => Ok((v.0, v.1, header)),
+                Err(e) => Err(format!("Error parsing Nbt: {e:?}")),
+            },
         }
     }
 
@@ -137,21 +131,66 @@ impl NbtView {
         };
 
         match tag {
-            NbtTag::Byte(v) => { Column::new().push(Text::new(format!("{name}{}Byte({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::Int16(v) => { Column::new().push(Text::new(format!("{name}{}Int16({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::Int32(v) => { Column::new().push(Text::new(format!("{name}{}Int32({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::Int64(v) => { Column::new().push(Text::new(format!("{name}{}Int64({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::Float32(v) => { Column::new().push(Text::new(format!("{name}{}Float32({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::Float64(v) => { Column::new().push(Text::new(format!("{name}{}Float64({v})", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
-            NbtTag::String(v) => { Column::new().push(Text::new(format!("{name}{}\"{v}\"", if !name.is_empty() {": "} else {""}))).padding(padding).into() }
+            NbtTag::Byte(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Byte({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::Int16(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Int16({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::Int32(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Int32({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::Int64(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Int64({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::Float32(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Float32({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::Float64(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}Float64({v})",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
+            NbtTag::String(v) => Column::new()
+                .push(Text::new(format!(
+                    "{name}{}\"{v}\"",
+                    if !name.is_empty() { ": " } else { "" }
+                )))
+                .padding(padding)
+                .into(),
             NbtTag::List(v) => {
                 let col = Column::new();
 
-                let mut col = col.push(Text::new(format!("{name}{}[", if !name.is_empty() {": "} else { "" })));
+                let mut col = col.push(Text::new(format!(
+                    "{name}{}[",
+                    if !name.is_empty() { ": " } else { "" }
+                )));
 
                 for nbt in v.iter() {
-                    col = col.push(self.nbt2elements("".to_string(), nbt.clone(), indent+1));
-                };
+                    col = col.push(self.nbt2elements("".to_string(), nbt.clone(), indent + 1));
+                }
 
                 col = col.push(Text::new(String::from("]")));
 
@@ -160,17 +199,23 @@ impl NbtView {
             NbtTag::Compound(v) => {
                 let mut col = Column::new();
 
-                col = col.push(Text::new(format!("{name}{}{{", if !name.is_empty() {": "} else { "" })));
+                col = col.push(Text::new(format!(
+                    "{name}{}{{",
+                    if !name.is_empty() { ": " } else { "" }
+                )));
 
                 for (str, nbt) in v.iter() {
-                    col = col.push(self.nbt2elements(str.clone(), nbt.clone(), indent+1));
+                    col = col.push(self.nbt2elements(str.clone(), nbt.clone(), indent + 1));
                 }
 
                 col = col.push(Text::new(format!("}}")));
 
                 col.padding(padding).into()
             }
-            NbtTag::Empty => { Column::new().push(Text::new(format!("{name}: EMPTY"))).padding(padding).into() }
+            NbtTag::Empty => Column::new()
+                .push(Text::new(format!("{name}: EMPTY")))
+                .padding(padding)
+                .into(),
         }
     }
 }
@@ -187,9 +232,9 @@ impl BEditorView for NbtView {
 
     fn update(&mut self, message: BEditorMessage) {
         match message {
-            BEditorMessage::NbtViewSetPath(v) => { self.path = v }
-            BEditorMessage::NbtViewSetEndian(v) => { self.endian = v }
-            BEditorMessage::NbtViewSetHeader(v) => { self.header = v }
+            BEditorMessage::NbtViewSetPath(v) => self.path = v,
+            BEditorMessage::NbtViewSetEndian(v) => self.endian = v,
+            BEditorMessage::NbtViewSetHeader(v) => self.header = v,
             BEditorMessage::NbtViewRefresh => {}
         }
 
@@ -211,63 +256,58 @@ impl BEditorView for NbtView {
                         TextInput::new("Your Path", &self.path)
                             .on_input(BEditorMessage::NbtViewSetPath),
                     )
+                    .push(iced::widget::PickList::new(
+                        &NbtEndian::ALL[..],
+                        Some(self.endian),
+                        |s| BEditorMessage::NbtViewSetEndian(s),
+                    ))
+                    .push(iced::widget::PickList::new(
+                        &NbtHeader::ALL[..],
+                        Some(self.header),
+                        |s| BEditorMessage::NbtViewSetHeader(s),
+                    ))
                     .push(
-                        iced::widget::PickList::new(&NbtEndian::ALL[..], Some(self.endian), |s| {
-                            BEditorMessage::NbtViewSetEndian(s)
-                        })
-                    )
-                    .push(
-                        iced::widget::PickList::new(&NbtHeader::ALL[..], Some(self.header), |s| {
-                            BEditorMessage::NbtViewSetHeader(s)
-                        })
-                    )
-                    .push(
-                        iced::widget::Button::new(Text::new("Refresh")).on_press(BEditorMessage::NbtViewRefresh)
-                    )
+                        iced::widget::Button::new(Text::new("Refresh"))
+                            .on_press(BEditorMessage::NbtViewRefresh),
+                    ),
             )
-            .push(
-                Scrollable::new(
-                    match &self.nbt {
-                        Ok(v) => {
-                            let col = Column::new();
+            .push(Scrollable::new(match &self.nbt {
+                Ok(v) => {
+                    let col = Column::new();
 
-                            let col = match v.clone().2 {
-                                None => { col }
-                                Some(v) => {
-                                    match self.header {
-                                        NbtHeader::None => { col }
-                                        NbtHeader::Normal => {
-                                            let col = col.push(Text::new(String::from("Header: {")));
+                    let col = match v.clone().2 {
+                        None => col,
+                        Some(v) => match self.header {
+                            NbtHeader::None => col,
+                            NbtHeader::Normal => {
+                                let col = col.push(Text::new(String::from("Header: {")));
 
-                                            let col2 = Column::new();
-                                            let col2 = col2.push(Text::new(format!("First: {}", v.0)));
-                                            let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+                                let col2 = Column::new();
+                                let col2 = col2.push(Text::new(format!("First: {}", v.0)));
+                                let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
 
-                                            let col = col.push(col2.padding(padding));
+                                let col = col.push(col2.padding(padding));
 
-                                            col.push(Text::new(String::from("}")))
-                                        }
-                                        NbtHeader::LevelDat => {
-                                            let col = col.push(Text::new(String::from("Header: {")));
+                                col.push(Text::new(String::from("}")))
+                            }
+                            NbtHeader::LevelDat => {
+                                let col = col.push(Text::new(String::from("Header: {")));
 
-                                            let col2 = Column::new();
-                                            let col2 = col2.push(Text::new(format!("Format Version: {}", v.0)));
-                                            let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
+                                let col2 = Column::new();
+                                let col2 = col2.push(Text::new(format!("Format Version: {}", v.0)));
+                                let col2 = col2.push(Text::new(format!("Length: {}", v.1)));
 
-                                            let col = col.push(col2.padding(padding));
+                                let col = col.push(col2.padding(padding));
 
-                                            col.push(Text::new(String::from("}")))
-                                        }
-                                    }
-                                }
-                            };
+                                col.push(Text::new(String::from("}")))
+                            }
+                        },
+                    };
 
-                            col.push(self.nbt2elements(v.clone().0, v.clone().1, 0))
-                        }
-                        Err(e) => { Column::new().push(Text::new(format!("{e}"))) }
-                    }
-                )
-            )
+                    col.push(self.nbt2elements(v.clone().0, v.clone().1, 0))
+                }
+                Err(e) => Column::new().push(Text::new(format!("{e}"))),
+            }))
             .into()
     }
 }

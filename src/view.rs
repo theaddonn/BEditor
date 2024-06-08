@@ -1,4 +1,5 @@
 use iced::Element;
+
 use crate::messages::BEditorMessage;
 
 pub trait BEditorView {
