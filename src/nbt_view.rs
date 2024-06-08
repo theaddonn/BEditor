@@ -45,14 +45,14 @@ impl std::fmt::Display for NbtEndian {
 pub enum NbtHeader {
     #[default]
     None,
-    Enabled,
+    Normal,
     LevelDat
 }
 
 impl NbtHeader {
     const ALL: [NbtHeader; 3] = [
         NbtHeader::None,
-        NbtHeader::Enabled,
+        NbtHeader::Normal,
         NbtHeader::LevelDat,
     ];
 }
@@ -64,7 +64,7 @@ impl std::fmt::Display for NbtHeader {
             "{}",
             match self {
                 NbtHeader::None => "No Header",
-                NbtHeader::Enabled => "Header Enabled",
+                NbtHeader::Normal => "Normal Header",
                 NbtHeader::LevelDat => "Level.dat Header"
             }
         )
